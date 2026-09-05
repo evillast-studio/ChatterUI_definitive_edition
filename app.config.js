@@ -1,61 +1,61 @@
-name: Build Android APK (ARM64 Rapido)
+cat > /storage/emulated/0/Download/repo-ready/app.config.js << 'ENDOFFILE'
+const IS_DEV = process.env.APP_VARIANT === 'development'
 
-on:
-  push:
-    branches:
-      - main
-      - master
-
-jobs:
-  build-arm64:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Liberar espacio en disco
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
-
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
-
-      - name: Cache Gradle y node_modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            node_modules
-          key: ${{ runner.os }}-build-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Instalar dependencias rapidas
-        run: npm ci || npm install --prefer-offline --no-audit
-
-      - name: Generar carpeta android (expo prebuild)
-        run: npx expo prebuild --platform android --clean
-
-      - name: Compilar APK release (Optimizado)
-        env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
-          SOURCEMAP_RELEASE_MANIFEST: false
-        run: |
-          cd android
-          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --parallel --build-cache --no-daemon
-
-      - name: Subir APK como artefacto
-        uses: actions/upload-artifact@v4
-        with:
-          name: chatterui-arm64
-          path: android/app/build/outputs/apk/release/*.apk
+module.exports = {
+    expo: {
+        name: IS_DEV ? 'ChatterUI (DEV)' : 'ChatterUI',
+        newArchEnabled: true,
+        slug: 'ChatterUI',
+        version: '0.10.0-beta5',
+        orientation: 'default',
+        icon: './assets/images/icon.png',
+        scheme: 'chatterui',
+        userInterfaceStyle: 'automatic',
+        assetBundlePatterns: ['**/*'],
+        ios: {
+            supportsTablet: true,
+            package: IS_DEV ? 'com.Vali98.ChatterUIDev' : 'com.Vali98.ChatterUI',
+            bundleIdentifier: IS_DEV ? 'com.Vali98.ChatterUIDev' : 'com.Vali98.ChatterUI',
+        },
+        android: {
+            adaptiveIcon: {
+                foregroundImage: './assets/images/adaptive-icon-foreground.png',
+                backgroundImage: './assets/images//adaptive-icon-background.png',
+                monochromeImage: './assets/images/adaptive-icon-foreground.png',
+                backgroundColor: '#000',
+            },
+            package: IS_DEV ? 'com.Vali98.ChatterUIDev' : 'com.Vali98.ChatterUI',
+            userInterfaceStyle: 'dark',
+            permissions: [
+                'android.permission.FOREGROUND_SERVICE',
+                'android.permission.WAKE_LOCK',
+                'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
+            ],
+        },
+        plugins: [
+            ['expo-asset', { assets: ['./assets/models/aibot.raw', './assets/models/llama3tokenizer.gguf'] }],
+            ['expo-build-properties', { android: { largeHeap: true, usesCleartextTraffic: true, enableProguardInReleaseBuilds: true, enableShrinkResourcesInReleaseBuilds: true, useLegacyPackaging: true, extraProguardRules: '-keep class com.rnllama.** { *; }' } }],
+            ['expo-splash-screen', { backgroundColor: '#000000', image: './assets/images/adaptive-icon.png', imageWidth: 200 }],
+            ['expo-notifications', { icon: './assets/images/notification.png' }],
+            ['./expo-build-plugins/androidattributes.plugin.js', { 'android:largeHeap': true }],
+            ['@vali98/react-native-process-text', { label: 'Ask In ChatterUi' }],
+            ['expo-camera', { cameraPermission: 'Allow ChatterUI to access your camera' }],
+            ['expo-sqlite', { withSQLiteVecExtension: true }],
+            ['expo-image-picker', { photosPermission: 'ChatterUI requires image permissions for vision models', colors: { cropToolbarColor: '#000000' }, dark: { colors: { cropToolbarColor: '#000000' } } }],
+            'expo-localization',
+            'expo-router',
+            'expo-font',
+            'expo-image',
+            './expo-build-plugins/bgactions.plugin.js',
+            './expo-build-plugins/usercert.plugin.js',
+            './expo-build-plugins/rnllama.plugin.js',
+            './expo-build-plugins/copyhtp.plugin.js',
+            '@react-native-vector-icons/ant-design',
+            '@react-native-vector-icons/octicons',
+            '@react-native-vector-icons/material-icons',
+        ],
+        experiments: { typedRoutes: true, reactCompiler: true },
+        extra: { router: { origin: false }, eas: { projectId: 'd588a96a-5eb0-457a-85bc-e21acfdc60e9' } },
+    },
+}
+ENDOFFILE
